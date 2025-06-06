@@ -209,6 +209,7 @@ setup_wheel_group() {
 }
 
 verify_wheel_group() {
+    local exit_on_fail="${1:-true}"  # Default to exit on failure
     log "🔍 Verifying wheel group setup..." "$BLUE"
     
     # Exact logic from pam.example.sh choice "3"
@@ -216,8 +217,14 @@ verify_wheel_group() {
         log "✅ Group 'wheel' exists" "$GREEN"
         log "ℹ️ สมาชิกใน group 'wheel' ปัจจุบัน:" "$BLUE"
         sudo getent group wheel
+        return 0
     else
-        error_exit "❌ group 'wheel' ยังไม่มีในระบบ"
+        if [[ "$exit_on_fail" == "true" ]]; then
+            error_exit "❌ group 'wheel' ยังไม่มีในระบบ"
+        else
+            log "ℹ️ group 'wheel' ยังไม่มีในระบบ" "$YELLOW"
+            return 1
+        fi
     fi
 }
 
@@ -672,7 +679,7 @@ pam_creation_workflow() {
     
     # Step 3: Check wheel group (initial verification)
     log "🔍 Step 3: Initial wheel group check..." "$BLUE"
-    verify_wheel_group 2>/dev/null || log "ℹ️  Wheel group doesn't exist yet - will be created" "$BLUE"
+    verify_wheel_group "false" 2>/dev/null || log "ℹ️  Wheel group doesn't exist yet - will be created" "$BLUE"
     
     # Step 1: Setup wheel group
     log "🔧 Step 1: Setup wheel group..." "$BLUE"
