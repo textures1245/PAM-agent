@@ -5,9 +5,9 @@
 # Purpose: Automated PAM setup with safety mechanisms
 
 # Global variables
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-USER_LIST_FILE="$SCRIPT_DIR/user_list.csv"
-SSH_KEY_LIST_FILE="$SCRIPT_DIR/ssh_key_list.csv"
+
+USER_LIST_FILE="./user_list.csv"
+SSH_KEY_LIST_FILE="./ssh_key_list.csv"
 BACKUP_DIR=""
 
 # Tracking arrays for rollback
