@@ -3,6 +3,11 @@
 # PAM Automation Agent - Enhanced version of pam.example.sh
 # Author: Based on production-proven pam.example.sh logic
 # Purpose: Automated PAM setup with safety mechanisms
+# 
+# Workflow Changes:
+# - Option 1: Pre-status check -> if complete, exit; if incomplete, run action-only workflow
+# - Verification steps removed from automation workflow 
+# - Verification functions available for manual execution only (Option 3)
 
 # Global variables
 
@@ -517,6 +522,44 @@ configure_ssh_security() {
     log "✅ ตั้งค่า ssh และ restart sshd สำเร็จ" "$GREEN"
 }
 
+# Check if PAM is already properly set up (returns 0 if complete, 1 if incomplete)
+is_pam_setup_complete() {
+    local issues=0
+    
+    # Check wheel group exists
+    if ! getent group wheel >/dev/null 2>&1; then
+        ((issues++))
+    fi
+    
+    # Check sudo permissions
+    if ! sudo grep -q "^%wheel\s\+ALL=(ALL)\s\+ALL" /etc/sudoers; then
+        ((issues++))
+    fi
+    
+    # Check users from CSV exist and are in wheel group
+    while IFS=, read -r USERNAME _; do
+        [[ -z "$USERNAME" ]] && continue
+        
+        if ! getent passwd "$USERNAME" >/dev/null 2>&1; then
+            ((issues++))
+        elif ! id -nG "$USERNAME" | grep -qw "wheel"; then
+            ((issues++))
+        fi
+    done < "$USER_LIST_FILE"
+    
+    # Check SSH keys
+    while IFS=, read -r USERNAME _; do
+        [[ -z "$USERNAME" ]] && continue
+        
+        AUTH_KEYS="/home/$USERNAME/.ssh/authorized_keys"
+        if ! sudo test -f "$AUTH_KEYS"; then
+            ((issues++))
+        fi
+    done < "$SSH_KEY_LIST_FILE"
+    
+    return $issues
+}
+
 # Check if PAM creation was completed (Option C - Comprehensive validation)
 check_pam_creation_status() {
     local issues=0
@@ -653,6 +696,19 @@ pam_creation_workflow() {
     # Load and validate CSV files (Option B - after selection)
     validate_csv_files
     
+    # Pre-status check: Execute show_pam_status first
+    log "🔍 Checking current PAM status before proceeding..." "$BLUE"
+    show_pam_status
+    
+    # Check if PAM setup is already complete
+    if is_pam_setup_complete; then
+        log "✅ PAM setup is already complete - no action needed!" "$GREEN"
+        log "ℹ️  All users, groups, and SSH keys are properly configured" "$BLUE"
+        return 0
+    fi
+    
+    log "ℹ️  PAM setup incomplete - proceeding with creation workflow" "$BLUE"
+    
     # Get user parameters
     echo
     read -rp "Install libpam-pwquality and enable password quality? (1=Yes, 0=No): " ENABLE_PWQUALITY
@@ -673,25 +729,12 @@ pam_creation_workflow() {
     # Set trap for automatic rollback on failure
     trap 'safe_rollback; exit 1' ERR
     
-    # Execute PAM creation workflow: 3→1→3→9→7→4*→5*→12→10/11→12→15→13→15
-    
-    log "📋 Starting PAM creation workflow: 3→1→3→9→7→4*→5*→12→10/11→12→15→13→15" "$BLUE"
-    
-    # Step 3: Check wheel group (initial verification)
-    log "🔍 Step 3: Initial wheel group check..." "$BLUE"
-    verify_wheel_group "false" 2>/dev/null || log "ℹ️  Wheel group doesn't exist yet - will be created" "$BLUE"
+    # Execute PAM creation workflow: ACTION STEPS ONLY (3→1→7→4*→5*→10/11→13)
+    log "📋 Starting PAM creation workflow: ACTION STEPS ONLY" "$BLUE"
     
     # Step 1: Setup wheel group
     log "🔧 Step 1: Setup wheel group..." "$BLUE"
     setup_wheel_group
-    
-    # Step 3: Verify wheel group (after setup)
-    log "🔍 Step 3: Verify wheel group setup..." "$BLUE"
-    verify_wheel_group
-    
-    # Step 9: Verify users (check current state)
-    log "🔍 Step 9: Check current user state..." "$BLUE"
-    # Note: This will show current state, users will be created in Step 7
     
     # Step 7: Create users
     log "👥 Step 7: Create users from CSV..." "$BLUE"
@@ -709,10 +752,6 @@ pam_creation_workflow() {
         log "⏭️  Steps 4 & 5: Skipped (pwquality disabled by user)" "$YELLOW"
     fi
     
-    # Step 12: Check password settings (before setting expiry)
-    log "🔍 Step 12: Check current password settings..." "$BLUE"
-    verify_password_settings
-    
     # Step 10/11: Set password expiry based on user input
     if [[ "$PASSWORD_EXPIRY" == "1" ]]; then
         log "⏰ Step 10: Set 90-day password expiry..." "$BLUE"
@@ -722,27 +761,9 @@ pam_creation_workflow() {
         set_password_expiry 9999 "9999 days"
     fi
     
-    # Step 12: Verify password settings (after setting expiry)
-    log "🔍 Step 12: Verify password settings after expiry change..." "$BLUE"
-    verify_password_settings
-    
-    # Step 15: Check SSH keys (before installation)
-    log "🔍 Step 15: Check current SSH key state..." "$BLUE"
-    verify_ssh_keys 2>/dev/null || log "ℹ️  No SSH keys found yet - will be installed" "$BLUE"
-    
     # Step 13: Install SSH keys
     log "🔑 Step 13: Install SSH keys..." "$BLUE"
     install_ssh_keys
-    
-    # Step 15: Verify SSH keys (after installation)
-    log "🔍 Step 15: Verify SSH keys after installation..." "$BLUE"
-    verify_ssh_keys
-    
-    # Final verification (Option C - Comprehensive)
-    log "🔍 Final comprehensive verification..." "$BLUE"
-    if ! check_pam_creation_status; then
-        error_exit "PAM creation verification failed"
-    fi
     
     # Success! Clean up
     trap - ERR  # Remove error trap
