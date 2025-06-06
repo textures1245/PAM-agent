@@ -1,0 +1,57 @@
+pam.example.sh
+/etc
+
+
+# ─────── OS generated ───────
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ─────── Editor / IDE ───────
+# Vim swap files, backups
+*~
+*.swp
+*.swo
+# VS Code
+.vscode/
+# IntelliJ / WebStorm / PhpStorm
+.idea/
+*.iml
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ─────── Shell environment ───────
+.env
+.env.local
+.env.*.local
+.envrc
+
+# ─────── Logs & runtime data ───────
+logs/
+*.log
+tmp/
+temp/
+*.pid
+*.seed
+
+# ─────── Build / output ───────
+build/
+dist/
+coverage/
+*.lcov
+
+# ─────── Dependency directories ───────
+node_modules/
+bower_components/
+
+# ─────── Python (if you ever add scripts) ───────
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ─────── Misc ───────
+*.bak
