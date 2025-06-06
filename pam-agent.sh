@@ -54,11 +54,7 @@ pre_flight_validation() {
     if ! sudo -n true 2>/dev/null; then
         error_exit "Script requires sudo access"
     fi
-    
-    # Check if sshd service exists
-    # if ! systemctl list-unit-files sshd.service >/dev/null 2>&1; then
-    #     error_exit "SSH service not found or not manageable"
-    # fi
+
     
     log "✅ Pre-flight validation passed" "$GREEN"
 }
