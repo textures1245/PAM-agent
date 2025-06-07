@@ -100,37 +100,61 @@ validate_full_user_list() {
     log "📄 Validating full user list CSV..." "$BLUE"
 
     if [[ ! -f "$FULL_USER_LIST" ]]; then
-        error_exit "Full user list file not found: $FULL_USER_LIST"
+        warning_log "Full user list file not found: $FULL_USER_LIST"
+        exit 0
     fi
 
     if [[ ! -r "$FULL_USER_LIST" ]]; then
         error_exit "Cannot read full user list file: $FULL_USER_LIST"
     fi
 
-    # Clean Windows line endings
-    sed -i 's/\r$//' "$FULL_USER_LIST"
+    # Clean Windows line endings if they exist
+    if command -v dos2unix >/dev/null 2>&1; then
+        dos2unix "$FULL_USER_LIST" 2>/dev/null || true
+    else
+        sed -i 's/\r$//' "$FULL_USER_LIST" 2>/dev/null || true
+    fi
 
-    # Validate CSV format (should have 4 columns: project_group,username,password,ssh_public_key)
+    # Validate CSV format (should have 4 columns, check only column count)
     local line_count=0
-    while IFS=',' read -r project_group username password ssh_key || [[ -n "$project_group" ]]; do
+    local valid_lines=0
+    while IFS= read -r line || [[ -n "$line" ]]; do
         ((line_count++))
 
         # Skip empty lines
-        [[ -z "$project_group" ]] && continue
+        [[ -z "$line" ]] && continue
 
-        # Validate required fields
+        # Count columns (should be 4)
+        local column_count=$(echo "$line" | tr ',' '\n' | wc -l)
+        if [[ "$column_count" -ne 4 ]]; then
+            warning_log "Line $line_count has $column_count columns (expected 4): $line"
+            continue
+        fi
+
+        # Parse fields
+        IFS=',' read -r project_group username password ssh_key <<< "$line"
+
+        # Validate required fields (project_group, username, password are required)
         if [[ -z "$project_group" || -z "$username" || -z "$password" ]]; then
-            error_exit "Invalid CSV format at line $line_count: Missing required fields (project_group,username,password required)"
+            warning_log "Line $line_count: Missing required fields (project_group,username,password): $line"
+            continue
         fi
 
         # Validate username format
         if ! [[ "$username" =~ ^[a-z][a-z0-9_-]*$ ]]; then
-            error_exit "Invalid username format at line $line_count: '$username' (must start with lowercase letter, contain only lowercase letters, numbers, hyphens, underscores)"
+            warning_log "Line $line_count: Invalid username format '$username' (must start with lowercase letter)"
+            continue
         fi
 
-    done <"$FULL_USER_LIST"
+        ((valid_lines++))
 
-    log "✅ Full user list validation passed" "$GREEN"
+    done < "$FULL_USER_LIST"
+
+    if [[ "$valid_lines" -eq 0 ]]; then
+        error_exit "No valid user entries found in CSV file"
+    fi
+
+    log "✅ Full user list validation passed ($valid_lines valid entries)" "$GREEN"
 }
 
 # Get unique project groups from CSV
