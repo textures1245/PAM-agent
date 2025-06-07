@@ -42,7 +42,7 @@ log() {
     local message="$1"
     local color="${2:-$NC}"
 
-    echo "${color}$message${NC}"
+    echo -e "${color}${message}${NC}"
 }
 
 # Error handling with enhanced rollback
