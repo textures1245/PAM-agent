@@ -101,6 +101,7 @@ validate_full_user_list() {
 
     if [[ ! -f "$FULL_USER_LIST" ]]; then
         warning_log "Full user list file not found: $FULL_USER_LIST"
+        log "📝 Creating sample CSV file..." "$BLUE"
         exit 0
     fi
 
@@ -115,24 +116,30 @@ validate_full_user_list() {
         sed -i 's/\r$//' "$FULL_USER_LIST" 2>/dev/null || true
     fi
 
-    # Validate CSV format (should have 4 columns, check only column count)
+    # Validate CSV format - simplified and robust
     local line_count=0
     local valid_lines=0
+    
     while IFS= read -r line || [[ -n "$line" ]]; do
         ((line_count++))
 
         # Skip empty lines
         [[ -z "$line" ]] && continue
 
-        # Count columns (should be 4)
-        local column_count=$(echo "$line" | tr ',' '\n' | wc -l)
+        # Count columns using simple field count
+        IFS=',' read -ra fields <<< "$line"
+        local column_count=${#fields[@]}
+        
         if [[ "$column_count" -ne 4 ]]; then
             warning_log "Line $line_count has $column_count columns (expected 4): $line"
             continue
         fi
 
-        # Parse fields
-        IFS=',' read -r project_group username password ssh_key <<< "$line"
+        # Parse fields directly from array
+        local project_group="${fields[0]}"
+        local username="${fields[1]}"
+        local password="${fields[2]}"
+        local ssh_key="${fields[3]}"
 
         # Validate required fields (project_group, username, password are required)
         if [[ -z "$project_group" || -z "$username" || -z "$password" ]]; then
@@ -864,6 +871,8 @@ main() {
 
     # Validate CSV file
     validate_full_user_list
+
+    log "✅ Full user list validation completed" "$GREEN"
 
     while true; do
         show_main_menu
