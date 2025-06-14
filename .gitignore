@@ -1,6 +1,9 @@
 pam.example.sh
 /etc
 DAILY_REPORT.md
+/internal
+/internal-v2
+/utils
 
 
 # ─────── OS generated ───────
