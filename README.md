@@ -1,317 +1,509 @@
-# PAM Automation Agent V2 - Complete Implementation
+# PAM Automation Agent V4
 
-## 🎉 Project Overview
+**PAM Agent V4** เป็นระบบจัดการ PAM (Pluggable Authentication Modules) อัตโนมัติที่สมบูรณ์ พร้อมด้วยระบบกู้คืน SSH ฉุกเฉิน และการจัดการผู้ใช้งานแบบ JSON-based Smart IP Detection
 
-**PAM Agent V2** is a fully automated PAM (Pluggable Authentication Modules) management system that transforms the manual `pam.example.sh` script into a comprehensive, project-based automation solution with enhanced safety mechanisms and bug fixes.
+### 🚀 ความสำเร็จหลัก
 
-### 🚀 Key Achievements
+- **✅ Complete V4 Implementation**: ระบบ JSON-based workflow ที่สมบูรณ์
+- **✅ Emergency SSH Recovery**: ระบบกู้คืน SSH service เมื่อเกิดปัญหา (Option 99)
+- **✅ Enhanced Error Handling**: การจัดการ error แบบ graceful แทน strict mode
+- **✅ Smart IP Detection**: ระบบตรวจจับ IP อัตโนมัติจาก VM IP ปัจจุบัน
+- **✅ Advanced Features**: PAM Advanced Options (P'Aomsin Script)
+- **✅ Production Ready**: พร้อมใช้งานจริงด้วยความปลอดภัยสูง
 
-- **✅ Complete Automation**: Converted 18-menu manual process to 6-option automated system
-- **✅ Project-Based Management**: Support for multiple project groups in single workflow
-- **✅ Bug Fixes**: Resolved SSH key handling and verification issues from V1
-- **✅ Enhanced Safety**: Timestamped backups, rollback mechanisms, orphaned user detection
-- **✅ Local CSV Approach**: Simplified data management without external API dependencies
+## 📁 โครงสร้างไฟล์
 
----
-
-## 📋 Features
-
-### 🎯 Core Functionality
-1. **Automated PAM Creation** - Complete PAM setup with project-based user filtering
-2. **SSH Hardening** - Standalone SSH security configuration
-3. **Status Checking** - Comprehensive system validation with SSH key verification
-4. **Orphaned User Management** - Detection and cleanup of unused users
-5. **Report Generation** - Detailed system status and configuration reports
-6. **Safe Exit** - Clean shutdown with confirmation
-
-### 🛡️ Safety Features
-- **Timestamped Backups**: `backup_YYYYMMDD_HHMMSS/` directory structure
-- **Comprehensive Rollback**: Restore users, files, and SSH directories
-- **Pre-flight Validation**: System compatibility and requirement checks
-- **Error Tracking**: Arrays to track created users, modified files, SSH directories
-- **Cross-validation**: Verification between CSV files and system state
-
-### 🔧 Bug Fixes from V1
-- **SSH Key Override Logic**: Fixed appending vs. overriding authorized_keys
-- **Enhanced Verification**: SSH key validation in status checking
-- **Improved Error Handling**: Better rollback and cleanup mechanisms
-- **CSV Validation**: Robust parsing and format validation
-
----
-
-## 📊 Architecture
-
-### File Structure
 ```
 pam-automation/
-├── pam-agent-v2.sh           # Main V2 script (917 lines)
-├── full_user_list.csv        # Master user data (4-column format)
+├── extract-clean-users-creds-v3.sh     # สคริปต์แปลง CSV เป็น JSON
+├── pam-agent-v4.sh                     # PAM Agent V4 Phase 3 หลัก
+├── user_credentials_clean.json         # ไฟล์ JSON ข้อมูลผู้ใช้ (output จาก V3)
 ├── etc/
-│   ├── user_list.csv         # Generated user credentials
-│   └── ssh_key_list.csv      # Generated SSH keys
-├── DAILY_REPORT.md           # Comprehensive development log
-└── README_V2_COMPLETE.md     # This file
+│   ├── user_list.csv                   # ไฟล์ CSV ผู้ใช้ (สร้างโดย V4)
+│   └── ssh_key_list.csv               # ไฟล์ CSV SSH keys (สร้างโดย V4)
+└── raw_user_list_v2.csv           # ไฟล์ CSV ต้นฉบับจาก PAM Checklist
 ```
 
-### CSV Format
-**Master File (`full_user_list.csv`)**:
+---
+
+## 🎮 คู่มือการใช้งาน
+
+### 📋 ขั้นตอนการใช้งาน PAM Automation Agent V4
+
+#### ขั้นตอนที่ 1: เตรียมไฟล์ CSV จาก PAM Checklist
+
+1. **ดาวน์โหลดไฟล์ CSV** จากโปรเจค PAM Checklist:
+   - เข้าไปยังแท็บ "User Credentials" หรือแท็บที่มีข้อมูลผู้ใช้
+   - ดาวน์โหลดไฟล์ CSV ที่มีรูปแบบดังนี้:
+
 ```csv
-project_group,username,password,ssh_public_key
-project_a,alice,Password123,ssh-ed25519 AAAA...
-project_b,bob,SecurePass456,ssh-rsa AAAA...
-project_a,charlie,MyPass789,
+Username,Password,SSH_Public_Key,Team,Employee_ID,Thai_Name,English_Name,ZONE-1,,,ZONE-2,,,ZONE-3,,,ZONE-4,,,ZONE-5,,,ZONE-6,,,ZONE-7,,,ZONE-8,,,ZONE-9,,,ZONE-10
+,,,,,,,VM-WEB-01,VM-WEB-02,VM-WEB-03,VM-APP-01,VM-APP-02,VM-APP-03,VM-DB-01,VM-DB-02,VM-DB-03,VM-LB-01,VM-LB-02,VM-LB-03,VM-CACHE-01,VM-CACHE-02,VM-CACHE-03,VM-QUEUE-01,VM-QUEUE-02,VM-QUEUE-03,VM-MON-01,VM-MON-02,VM-MON-03,VM-LOG-01,VM-LOG-02,VM-LOG-03
+,,,,,,,PRIVATE_10.0.1.10,PRIVATE_10.0.1.11,PRIVATE_10.0.1.12,PRIVATE_10.0.2.10,PRIVATE_10.0.2.11,PRIVATE_10.0.2.12,PRIVATE_10.0.3.10,PRIVATE_10.0.3.11,PRIVATE_10.0.3.12,PRIVATE_10.0.4.10,PRIVATE_10.0.4.11,PRIVATE_10.0.4.12,PRIVATE_10.0.5.10,PRIVATE_10.0.5.11,PRIVATE_10.0.5.12,PRIVATE_10.0.6.10,PRIVATE_10.0.6.11,PRIVATE_10.0.6.12,PRIVATE_10.0.7.10,PRIVATE_10.0.7.11,PRIVATE_10.0.7.12,PRIVATE_10.0.8.10,PRIVATE_10.0.8.11,PRIVATE_10.0.8.12
+User johndoe,P@ssw0rd123!,ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyData1234567890ABCDEF,DevOps Team,EMP001,จอห์น โด,John Doe,TRUE,TRUE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE
+User janesmith,SecureP@ss456,ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDExampleRSAKeyDataHere1234567890...,Security Team,EMP002,เจน สมิธ,Jane Smith,FALSE,FALSE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,FALSE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,FALSE,FALSE,TRUE,FALSE,TRUE,FALSE,TRUE
+User bobwilson,MyStr0ngP@ss,ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAnotherExampleKeyForBob987654321,Database Team,EMP003,บ็อบ วิลสัน,Bob Wilson,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,TRUE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,FALSE,FALSE,TRUE,FALSE,FALSE,TRUE,FALSE,TRUE,TRUE
 ```
 
-### Workflow Implementation
-**Complete PAM Workflow**: `3 → 1 → 3 → 9 → 7 → 4* -> 5* -> 12 → 10 → 12 → 15 → 13 → 15 → 16`
+2. **ตรวจสอบรูปแบบไฟล์ CSV**:
+   - **Header Structure**: ต้องมี 3 แถวแรกเป็น header
+     - แถวที่ 1: `Username,Password,SSH_Public_Key,Team,Employee_ID,Thai_Name,English_Name,ZONE-1,,,ZONE-2,...`
+     - แถวที่ 2: `,,,,,,VM-NAME-1,VM-NAME-2,VM-NAME-3,...`
+     - แถวที่ 3: `,,,,,,PRIVATE_192.168.0.1,PRIVATE_192.168.0.2,...`
+   - **User Rows**: แถวข้อมูลผู้ใช้ที่ขึ้นต้นด้วย `"User "`
+   - **Boolean Values**: ค่า `TRUE`/`FALSE` สำหรับการกำหนดสิทธิ์ access IP
 
-1. **Step 3**: Initial status check
-2. **Step 1**: Install PAM packages
-3. **Step 3**: Post-install verification
-4. **Step 9**: Configure wheel group
-5. **Step 7**: Configure PAM policy
-6. **Step 4***: Create user accounts (project-filtered)
-7. **Step 5***: Configure user groups
-8. **Step 12**: Setup SSH directories
-9. **Step 10**: Configure SSH keys (FIXED: override logic)
-10. **Step 12**: SSH verification
-11. **Step 15**: Configure SSH daemon
-12. **Step 13**: Restart SSH service
-13. **Step 15**: Final SSH verification
-14. **Step 16**: Complete system validation
+#### ขั้นตอนที่ 2: แปลงไฟล์ CSV เป็น JSON
+
+1. **วางไฟล์ CSV** ที่ดาวน์โหลดมาใน directory `internal-v2/data/` และตั้งชื่อเป็น `raw_user_list_v2.csv`
+
+2. **รันสคริปต์แปลงข้อมูล**:
+
+```bash
+# ให้สิทธิ์การใช้งาน
+chmod +x extract-clean-users-creds-v3.sh
+
+# รันสคริปต์แปลงข้อมูล
+./extract-clean-users-creds-v3.sh
+```
+
+3. **สคริปต์จะทำการ**:
+   - ตรวจจับ header structure แบบ dynamic
+   - แยกข้อมูล username จาก pattern `"User username"`
+   - แปลง boolean logic (TRUE/FALSE) เป็น IP arrays
+   - สร้างไฟล์ `user_credentials_clean.json` ที่พร้อมใช้กับ PAM Agent V4
+
+#### ขั้นตอนที่ 3: ใช้งาน PAM Agent V4
+
+1. **เตรียมระบบ**:
+
+```bash
+# ตรวจสอบสิทธิ์ sudo
+sudo -v
+
+# ให้สิทธิ์การใช้งาน
+chmod +x pam-agent-v4.sh
+
+# รันสคริปต์หลัก
+sudo ./pam-agent-v4.sh
+```
+
+2. **เมนูตัวเลือก**:
+
+```
+=======================================
+      PAM Automation Agent V4
+   (JSON-based Smart IP Detection)
+    Phase 3 - Enhanced Features
+=======================================
+1) 🔧 PAM Creation (สร้างระบบ PAM)
+2) 🔒 SSH Security Hardening (เพิ่มความปลอดภัย SSH)
+3) 📊 Show PAM Status (แสดงสถานะ PAM)
+4) 🧹 Clean-up (ทำความสะอาดระบบ)
+5) 📝 CSV Generation (สร้างไฟล์ CSV)
+6) 🛠️ PAM Advanced Options (P'Aomsin Script)
+7) 🗂️ Advanced Cleanup (ทำความสะอาดขั้นสูง)
+8) 🚪 Exit (ออก)
+
+🆘 Emergency Options:
+99) 🚨 Emergency SSH System Fix (แก้ไขระบบ SSH ฉุกเฉิน)
+=======================================
+```
+
+### 📖 คำอธิบายตัวเลือก
+
+#### ตัวเลือกหลัก
+
+**1) PAM Creation (สร้างระบบ PAM)**
+
+- สร้างระบบ PAM อัตโนมัติแบบครบครัน
+- ระบบจะตรวจจับ IP ปัจจุบันของ VM และแสดงผู้ใช้ที่เกี่ยวข้อง
+- สร้างผู้ใช้, กำหนดรหัสผ่าน, ตั้งค่า SSH keys
+- รวมถึงการตั้งค่า wheel group และ sudo permissions
+
+**2) SSH Security Hardening (เพิ่มความปลอดภัย SSH)**
+
+- ปิด PasswordAuthentication (เหลือเฉพาะ key-based)
+- ปิด Root login
+- ตั้งค่าความปลอดภัย SSH ตาม best practices
+- ⚠️ **คำเตือน**: ตรวจสอบ SSH keys ก่อนใช้งาน!
+
+**3) Show PAM Status (แสดงสถานะ PAM)**
+
+- แสดงสถานะผู้ใช้ในระบบ
+- ตรวจสอบ SSH keys และการตั้งค่า
+- แสดงข้อมูล password expiry
+- ตรวจสอบการตั้งค่า SSH configuration
+
+**4) Clean-up (ทำความสะอาดระบบ)**
+
+- ลบผู้ใช้ที่สร้างขึ้น
+- ลบ SSH keys และ directories
+- คืนค่าการตั้งค่าระบบ
+- ตัวเลือกสำหรับทดสอบหรือยกเลิกการติดตั้ง
+
+**5) CSV Generation (สร้างไฟล์ CSV)**
+
+- สร้างไฟล์ CSV จากข้อมูล JSON สำหรับผู้ใช้ที่เลือก
+- แสดงตัวเลือก IP addresses ที่ available
+- สร้าง `user_list.csv` และ `ssh_key_list.csv`
+
+#### ตัวเลือกขั้นสูง
+
+**6) PAM Advanced Options (P'Aomsin Script)**
+
+- เรียกใช้สคริปต์ `pam.example.sh` จาก GitLab repository
+- มี 18 ตัวเลือกสำหรับจัดการ PAM แบบ manual
+- เหมาะสำหรับการ fine-tuning หรือ advanced configuration
+
+**7) Advanced Cleanup (ทำความสะอาดขั้นสูง)**
+
+- ลบ backup files ทั้งหมด
+- ลบ CSV และ JSON files ที่สร้างขึ้น
+- ถอนการติดตั้ง dependencies (jq, libpam-pwquality)
+- ทำความสะอาด apt cache
+
+#### ตัวเลือกฉุกเฉิน
+
+**99) Emergency SSH System Fix (แก้ไขระบบ SSH ฉุกเฉิน)**
+
+- ใช้เมื่อ SSH service ไม่สามารถเริ่มได้
+- สร้าง `/run/sshd` directory ที่หาย
+- สร้าง SSH host keys ใหม่
+- คืนค่า SSH configuration เป็นค่า default ที่ทำงานได้
+- รีสตาร์ท SSH service อย่างปลอดภัย
+
+### 🔧 ระบบ Smart IP Detection
+
+PAM Agent V4 มีระบบ Smart IP Detection ที่ทำงานดังนี้:
+
+1. **Auto-Detection**: ตรวจจับ IP address ปัจจุบันของ VM
+2. **JSON Matching**: หาผู้ใช้ที่มีสิทธิ์ access IP นั้น ๆ
+3. **Single Match**: หาก match เพียงรายการเดียว → auto-select
+4. **Multiple Matches**: แสดงตัวเลือกให้ผู้ใช้เลือก
+5. **No Match**: แจ้งเตือนและให้เลือกจาก IP addresses ทั้งหมด
+
+### 🛡️ ฟีเจอร์ความปลอดภัย
+
+- **Automatic Backup**: สำรองไฟล์ก่อนแก้ไขทุกครั้ง
+- **Configuration Testing**: ทดสอบ SSH config ก่อน apply
+- **Rollback Mechanism**: คืนค่าการตั้งค่าเดิมเมื่อเกิดข้อผิดพลาด
+- **User Confirmation**: ขอยืนยันสำหรับการดำเนินการที่อันตราย
+- **Error Handling**: จัดการ error แบบ graceful ไม่ให้ระบบ crash
+
+### ⚠️ ข้อควรระวัง
+
+1. **SSH Keys**: ตรวจสอบ SSH keys ให้ถูกต้องก่อนใช้ SSH Hardening
+2. **Backup Access**: เตรียม console access หรือ alternative access method
+3. **Password Expiry**: ระบบจะถาม password expiry (default = ไม่หมดอายุ)
+4. **Root Access**: หลัง SSH Hardening จะไม่สามารถ login ด้วย root ได้
+5. **Emergency Recovery**: ใช้ option 99 เฉพาะเมื่อ SSH service มีปัญหา
+
+### 📝 ไฟล์ Output
+
+หลังการใช้งาน จะได้ไฟล์ดังนี้:
+
+- `user_credentials_clean.json` - ข้อมูล JSON ที่แปลงแล้ว
+- `user_list.csv` - รายการผู้ใช้สำหรับ IP ที่เลือก
+- `ssh_key_list.csv` - SSH keys สำหรับผู้ใช้
+- `backup_*` directories - ไฟล์ backup ต่าง ๆ
 
 ---
 
-## 🎮 Usage Guide
+### รูปแบบข้อมูล CSV Input
 
-### System Requirements
-- **OS**: Ubuntu/Debian with `apt-get`
-- **Privileges**: sudo access
-- **Commands**: `useradd`, `usermod`, `groupadd`, `getent`, `chage`, `systemctl`
-
-### Quick Start
-```bash
-# Make executable
-chmod +x pam-agent-v2.sh
-
-# Run with sudo privileges
-sudo ./pam-agent-v2.sh
+```csv
+Username,Password,SSH_Public_Key,Team,Employee_ID,Thai_Name,English_Name,ZONE-1,,,ZONE-2,,,ZONE-3,...
+,,,,,,,VM-WEB-01,VM-WEB-02,VM-WEB-03,VM-APP-01,VM-APP-02,VM-APP-03,...
+,,,,,,,PRIVATE_10.0.1.10,PRIVATE_10.0.1.11,PRIVATE_10.0.1.12,...
+User johndoe,P@ssw0rd123!,ssh-ed25519 AAAA...,DevOps Team,EMP001,จอห์น โด,John Doe,TRUE,TRUE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,FALSE
+User janesmith,SecureP@ss456,ssh-rsa AAAA...,Security Team,EMP002,เจน สมิธ,Jane Smith,FALSE,FALSE,TRUE,FALSE,TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,FALSE,TRUE,TRUE,TRUE,FALSE,TRUE,TRUE,FALSE,FALSE,TRUE,FALSE,TRUE,FALSE,TRUE
 ```
 
-### Menu Options
-```
-╔══════════════════════════════════════════════════════════════╗
-║                    PAM Automation Agent V2                  ║
-║                  Project-based CSV Approach                 ║
-╚══════════════════════════════════════════════════════════════╝
+### รูปแบบข้อมูล JSON Output
 
-📋 Available Operations:
-1. 🎯 Automated PAM Creation (Project-based)
-2. 🔒 SSH Hardening Only
-3. 🔍 Status Check
-4. 🗑️  Orphaned User Management
-5. 📊 Generate Report
-6. ❌ Exit
-```
+**ไฟล์ JSON ที่สร้างขึ้น (`user_credentials_clean.json`)**:
 
-### Project Selection Interface
-When selecting Option 1 (PAM Creation), you'll see:
-```
-🎯 Available project groups:
-1. project_a (3 users)
-2. project_b (2 users)
-3. All projects
-
-Select project group (1-3): 
-```
-
-### User Confirmation
-```
-👥 Selected users for processing:
-📋 Users in project 'project_a':
-  • alice - ✅ SSH key present
-  • charlie - ❌ No SSH key
-
-Continue with these users? (y/N):
-```
-
----
-
-## 🔧 Technical Implementation
-
-### Key Functions Overview
-
-#### Core Infrastructure
-```bash
-pre_flight_validation()      # System readiness validation
-validate_full_user_list()    # CSV format and content validation
-get_project_groups()         # Extract unique project groups
-get_users_by_project()       # Filter users by project group
-select_project_group()       # Interactive project selection UI
-display_selected_users()     # Show filtered users for confirmation
-```
-
-#### Safety & Backup System
-```bash
-create_backup_dir()          # Create timestamped backup directory
-backup_file()                # Individual file backup with tracking
-safe_rollback()              # Comprehensive system rollback
-detect_orphaned_users()      # Find and manage orphaned users
-```
-
-#### PAM Workflow Functions
-```bash
-check_pam_ssh_status()       # Enhanced status check with SSH validation
-install_pam_packages()       # PAM package installation
-configure_wheel_group()      # Wheel group creation and configuration
-configure_pam_policy()       # Password policy implementation
-create_user_accounts()       # User creation from filtered CSV data
-configure_user_groups()      # Group membership management
-setup_ssh_directories()     # SSH directory structure creation
-configure_ssh_keys()        # SSH key installation (FIXED: override logic)
-configure_ssh_daemon()      # SSH hardening configuration
-restart_ssh_service()       # SSH service management with verification
-final_verification()        # Complete system validation and reporting
-```
-
-### Enhanced Features
-
-#### Project-Based User Management
-- Interactive project group selection
-- Multi-project support in single CSV
-- User filtering with confirmation
-- Batch processing option ("All projects")
-
-#### Orphaned User Detection
-```bash
-# Detect users in wheel group not in CSV
-detect_orphaned_users() {
-    # Compare wheel group members vs CSV users
-    # Offer interactive cleanup option
-    # Safe removal with confirmation
+```json
+{
+  "metadata": {
+    "generated_at": "2025-06-14",
+    "extraction_method": "Unified CSV Template V3",
+    "source_files": ["test_row_dynamic_raw_user_list_v2-2.csv"],
+    "format_version": "3.0",
+    "column_detection": {
+      "username_column": 3,
+      "password_column": 5,
+      "ssh_key_column": 7,
+      "ip_columns": 19,
+      "username_detected": true,
+      "password_detected": true,
+      "ssh_key_detected": true,
+      "ip_columns_detected": true
+    },
+    "row_detection": {
+      "pattern": "User ",
+      "total_rows": 13,
+      "valid_rows": 13
+    },
+    "description": "Clean user credentials from unified CSV template with IP boolean columns"
+  },
+  "users": [
+    {
+      "username": "johndoe",
+      "password": "P@ssw0rd123!",
+      "ssh_public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyData1234567890ABCDEF",
+      "assigned_ips": [
+        "10.0.1.10",
+        "10.0.1.11",
+        "10.0.2.10",
+        "10.0.4.10",
+        "10.0.4.11",
+        "10.0.7.10"
+      ],
+      "metadata": {
+        "created_at": "2025-06-14",
+        "last_updated": "2025-06-14",
+        "ip_count": 4
+      }
+    },
+    {
+      "username": "janesmith",
+      "password": "SecureP@ss456",
+      "ssh_public_key": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDExampleRSAKeyDataHere1234567890...",
+      "assigned_ips": [
+        "10.0.1.12",
+        "10.0.2.11",
+        "10.0.2.12",
+        "10.0.3.10",
+        "10.0.3.11",
+        "10.0.4.12",
+        "10.0.5.10",
+        "10.0.5.11",
+        "10.0.6.10",
+        "10.0.6.11",
+        "10.0.7.11",
+        "10.0.8.12"
+      ],
+      "metadata": {
+        "created_at": "2025-06-14",
+        "last_updated": "2025-06-14",
+        "ip_count": 4
+      }
+    },
+    {
+      "username": "bobwilson",
+      "password": "MyStr0ngP@ss",
+      "ssh_public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAnotherExampleKeyForBob987654321",
+      "assigned_ips": [
+        "10.0.3.10",
+        "10.0.3.11",
+        "10.0.3.12",
+        "10.0.5.12",
+        "10.0.6.12",
+        "10.0.7.12",
+        "10.0.8.11",
+        "10.0.8.12"
+      ],
+      "metadata": {
+        "created_at": "2025-06-14",
+        "last_updated": "2025-06-14",
+        "ip_count": 4
+      }
+    }
+  ],
+  "ip_mappings": {
+    "10.0.1.10": ["johndoe"],
+    "10.0.1.11": ["johndoe"],
+    "10.0.1.12": ["janesmith"],
+    "10.0.2.10": ["johndoe"],
+    "10.0.2.11": ["janesmith"],
+    "10.0.2.12": ["janesmith"],
+    "10.0.3.10": ["janesmith", "bobwilson"],
+    "10.0.3.11": ["janesmith", "bobwilson"],
+    "10.0.3.12": ["bobwilson"]
+  }
 }
 ```
 
-#### Timestamped Backup Strategy
+### Workflow การทำงาน
+
+**PAM Creation Workflow**: `Smart IP Detection → CSV Generation → User Creation → SSH Setup → Security Hardening`
+
+1. **Smart IP Detection**: ตรวจจับ IP ปัจจุบันของ VM
+2. **JSON Processing**: หาผู้ใช้ที่มีสิทธิ์ access IP นั้น
+3. **CSV Generation**: สร้าง local CSV files สำหรับ PAM workflow
+4. **User Management**: สร้าง user accounts และ wheel group
+5. **SSH Configuration**: ตั้งค่า SSH keys และ directories
+6. **Security Implementation**: ใช้ PAM policies และ SSH hardening
+
+---
+
+## 🚀 คู่มือการติดตั้งและใช้งาน
+
+### ความต้องการของระบบ
+
+- **OS**: Ubuntu/Debian ที่มี `apt-get`
+- **Privileges**: สิทธิ์ sudo access
+- **Dependencies**: `jq`, `curl`, `systemctl`, `useradd`, `usermod`, `groupadd`
+- **Network**: เชื่อมต่อ internet สำหรับดาวน์โหลด dependencies
+
+### วิธีการติดตั้ง
+
+1. **Clone หรือดาวน์โหลดโปรเจค**:
+
 ```bash
-# Creates backup_YYYYMMDD_HHMMSS/ directories
-# Preserves original files with .backup extension
-# Tracks all modifications for rollback
+# ถ้ามี git repository
+git clone <repository-url>
+cd pam-automation
+
+# หรือคัดลอกไฟล์จาก source
+```
+
+2. **ให้สิทธิ์การใช้งาน**:
+
+```bash
+chmod +x extract-clean-users-creds-v3.sh
+chmod +x pam-agent-v4.sh
+chmod +x emergency_ssh_system_fix.sh
+```
+
+3. **ตรวจสอบสิทธิ์ sudo**:
+
+```bash
+sudo -v
+```
+
+### วิธีการใช้งานแบบ Quick Start
+
+```bash
+# ขั้นตอนที่ 1: วางไฟล์ CSV ต้นฉบับ
+cp your_downloaded_file.csv internal-v2/data/raw_user_list_v2.csv
+
+# ขั้นตอนที่ 2: แปลง CSV เป็น JSON
+./extract-clean-users-creds-v3.sh
+
+# ขั้นตอนที่ 3: รัน PAM Agent V4
+sudo ./pam-agent-v4.sh
+```
+
+### ขั้นตอนการใช้งาน
+
+**สำหรับ Production Environment**:
+
+```bash
+# รัน PAM Creation (Option 1)
+# ตรวจสอบสถานะด้วย Show Status (Option 3) - Check ว่าสามารถใช้ login ด้วย​ User ที่ถูก registered
+# รัน SSH Security Hardening (Option 2) 
+# ตรวจสอบสถานะด้วย Show Status (Option 3) - Check ว่าสามารถใช้ login ด้วย​ User ที่ถูก registered และไม่สามารถ Login ด้วย root-user ได้อีกต่อไป
+```
+
+**สำหรับการกู้คืนฉุกเฉิน**:
+
+```bash
+# ถ้า SSH service ไม่ทำงาน
+sudo ./pam-agent-v4.sh
+# เลือก Option 99 - Emergency SSH System Fix
 ```
 
 ---
 
-## 🐛 Bug Fixes from V1
+## 🛡️ คุณสมบัติด้านความปลอดภัย
 
-### 1. SSH Key Override Logic
-**Problem**: SSH keys were being appended to `authorized_keys`, causing duplicates
-**Solution**: 
+### ระบบ Backup อัตโนมัติ
+
+- **Timestamped Backups**: สร้าง backup directory แบบ `backup_YYYYMMDD_HHMMSS/`
+- **File Backup**: สำรองไฟล์ config ทั้งหมดก่อนแก้ไข
+- **Rollback Support**: คืนค่าการตั้งค่าเดิมเมื่อเกิดข้อผิดพลาด
+
+### การจัดการ Error
+
+- **Graceful Error Handling**: ระบบไม่ crash เมื่อเจอ error
+- **Warning System**: แยกแยะระหว่าง warning และ critical error
+- **Continuation Logic**: ทำงานต่อได้แม้เจอปัญหาบางส่วน
+
+### ระบบ Validation
+
+- **Pre-flight Checks**: ตรวจสอบระบบก่อนเริ่มงาน
+- **Configuration Testing**: ทดสอบ SSH config ก่อน apply
+- **User Confirmation**: ขอยืนยันสำหรับการดำเนินการที่อันตราย
+
+---
+
+## 🔧 การแก้ไขปัญหา
+
+### ปัญหาที่พบบ่อย
+
+**1. SSH Service ไม่สามารถเริ่มได้**
+
 ```bash
-# OLD (V1): echo "$ssh_key" >> "$auth_keys"
-# NEW (V2): echo "$ssh_key" | sudo tee "$auth_keys" > /dev/null
+# อาการ: SSH service failed to start
+# สาเหตุ: Missing /run/sshd directory หรือ corrupted config
+# วิธีแก้: ใช้ Option 99 - Emergency SSH System Fix
+sudo ./pam-agent-v4.sh
+# เลือก 99
 ```
 
-### 2. SSH Key Verification in Status Checks
-**Problem**: Status checking didn't verify SSH key content
-**Solution**: Added SSH key validation in `check_pam_ssh_status()`
+**2. ไฟล์ JSON ไม่ถูกสร้าง**
+
 ```bash
-# Verify SSH key content matches CSV data
-if [[ -f "$auth_keys" ]] && [[ -n "$ssh_key" ]]; then
-    if grep -q "$ssh_key" "$auth_keys"; then
-        log "✅ SSH key verified for $username" "$GREEN"
-    else
-        log "❌ SSH key mismatch for $username" "$RED"
-    fi
-fi
+# อาการ: extract-clean-users-creds-v3.sh ไม่สร้าง JSON
+# สาเหตุ: CSV format ไม่ถูกต้องหรือ missing header
+# วิธีแก้: ตรวจสอบ CSV format ให้ตรงตาม specification
 ```
 
-### 3. Enhanced Error Handling
-**Improvements**:
-- Better CSV parsing with empty field handling
-- Comprehensive rollback tracking
-- Improved logging and error messages
-- Safe exit mechanisms
+**3. User ไม่สามารถ login ด้วย SSH key ได้**
+
+```bash
+# อาการ: SSH key authentication failed
+# สาเหตุ: SSH key format ผิดหรือ permissions ไม่ถูกต้อง
+# วิธีแก้: ใช้ Option 3 เพื่อตรวจสอบสถานะ SSH keys
+```
+
+**4. Permission Denied เมื่อรันสคริปต์**
+
+```bash
+# อาการ: Permission denied
+# สาเหตุ: ไฟล์ไม่มีสิทธิ์ execute หรือไม่ได้รันด้วย sudo
+# วิธีแก้:
+chmod +x *.sh
+sudo ./pam-agent-v4.sh
+```
+
+### การ Debug
+
+**เปิดใช้งาน Debug Mode**:
+
+```bash
+# ถ้าต้องการ debug สคริปต์
+bash -x ./pam-agent-v4.sh
+```
+
+**ตรวจสอบ Log Files**:
+
+```bash
+# ตรวจสอบ SSH service logs
+sudo journalctl -xeu ssh.service
+sudo journalctl -xeu sshd.service
+
+# ตรวจสอบ system logs
+sudo tail -f /var/log/syslog
+```
 
 ---
 
-## 📈 Performance & Statistics
+## 📚 เอกสารเพิ่มเติม
 
-### Script Metrics
-- **Total Lines**: 917 (vs 846 in V1)
-- **Functions**: 25+ individual functions
-- **Error Handling**: Comprehensive try-catch patterns
-- **Logging**: Color-coded with timestamps
-- **Validation**: Multi-level validation (pre-flight, CSV, post-action)
+### เอกสารที่มีอยู่
 
-### Supported Scale
-- **Users**: Unlimited (CSV-based)
-- **Projects**: Multiple project groups
-- **SSH Keys**: Full SSH key lifecycle management
-- **Concurrent**: Safe for single-server execution
+- **PAM_AGENT_V4_PHASE3_COMPLETE.md** - เอกสารเทคนิคฉบับสมบูรณ์
+- **DEPLOYMENT_GUIDE.md** - คู่มือการ deploy สำหรับ production
+- **SSH_RECOVERY_DEPLOYMENT.md** - คู่มือการกู้คืน SSH
 
----
+### Log Files ที่สร้างขึ้น
 
-## 🚀 Production Readiness
-
-### ✅ Testing Status
-- **Syntax Validation**: Passed
-- **CSV Parsing**: Tested with sample data
-- **Workflow Logic**: Complete implementation
-- **Safety Mechanisms**: Comprehensive rollback
-- **Error Handling**: Robust error management
-
-### 🎯 Deployment Targets
-Ready for deployment on:
-- MOPH-DoctorID-Radius-Worker01-New
-- MOPH-DoctorID-Radius-Worker02-New  
-- MOPH-DoctorID-Radius-Worker03-New
-- MOPH-DoctorID-Radius-Rancher01-New
-
-### 📋 Pre-deployment Checklist
-- [ ] Update `full_user_list.csv` with production data
-- [ ] Verify sudo access on target servers
-- [ ] Create backup of existing configurations
-- [ ] Test with single project group first
-- [ ] Monitor log output during execution
-- [ ] Validate final system status
-
----
-
-## 📚 Documentation
-
-### Available Documentation
-1. **DAILY_REPORT.md** - Complete development log in Thai
-2. **V2_IMPLEMENTATION.md** - Technical implementation details
-3. **README_V2.md** - Basic V2 overview
-4. **README_V2_COMPLETE.md** - This comprehensive guide
-
-### Log Files
-- Script execution logs: `pam_automation_YYYYMMDD_HHMMSS.log`
-- Backup directories: `backup_YYYYMMDD_HHMMSS/`
-- Generated reports: `pam_report_YYYYMMDD_HHMMSS.md`
-
----
-
-## 🎉 Project Completion Summary
-
-### ✅ Accomplishments
-1. **Complete V2 Implementation** (917 lines)
-2. **Project-based Architecture** with interactive selection
-3. **Bug Fixes** for SSH key handling and verification
-4. **Enhanced Safety Features** with timestamped backups
-5. **Comprehensive Documentation** in Thai and English
-6. **Production-Ready** with full validation
-
-### 🔄 Evolution Path
-- **Manual Script** → `pam.example.sh` (18 menu options)
-- **Basic Automation** → `pam-agent.sh` (846 lines, V1)
-- **Enhanced Automation** → `pam-agent-v2.sh` (917 lines, V2)
-
-### 🏆 Success Metrics
-- **Automation Level**: 100% (manual → fully automated)
-- **Safety Improvement**: Enhanced with comprehensive rollback
-- **Bug Resolution**: All known issues from V1 resolved
-- **Feature Enhancement**: Project-based management added
-- **Documentation**: Complete technical and user documentation
+- สคริปต์จะสร้าง backup directories: `backup_YYYYMMDD_HHMMSS/`
+- ไฟล์ JSON output: `user_credentials_clean.json`
+- CSV files ที่สร้างขึ้น: `user_list.csv`, `ssh_key_list.csv`
 
 ---
