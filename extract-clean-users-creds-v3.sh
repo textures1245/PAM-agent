@@ -23,7 +23,7 @@
 # Created: 2025-06-13
 
 # Graceful error handling - no strict mode for production stability
-set -eo pipefail
+# set -eo pipefail
 
 # Global variables
 RAW_CSV=""
