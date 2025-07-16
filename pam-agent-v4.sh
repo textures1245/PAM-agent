@@ -452,7 +452,7 @@ create_users() {
         fi
 
         # สร้างผู้ใช้
-        sudo useradd -m -G wheel "$username" || {
+        sudo useradd -m -s /bin/bash -G wheel "$username" || {
             warning_log "ไม่สามารถสร้างผู้ใช้ $username ได้"
             continue
         }
