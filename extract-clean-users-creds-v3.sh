@@ -359,7 +359,7 @@ parse_unified_csv() {
         local username_field=$(clean_field "${FIELDS[$USERNAME_COLUMN]}")
         local username=""
 
-        if [[ "$username_field" =~ ^User[[:space:]]+([a-zA-Z0-9_-]+)$ ]]; then
+        if [[ "$username_field" =~ ^User[[:space:]]+([a-zA-Z0-9_.:-]+)$ ]]; then
             username="${BASH_REMATCH[1]}"
         else
             warning_log "Line $TOTAL_ROWS: Invalid username format '$username_field', skipping"
