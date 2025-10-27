@@ -625,6 +625,17 @@ ssh_security_hardening() {
         return 1
     }
 
+    # check if file exits on /etc/ssh/sshd_config.d/50-cloud-init.conf then sed PasswordAuthentication to "no"
+    if [[ -f "/etc/ssh/sshd_config.d/50-cloud-init.conf" ]]; then
+        log "🔧 กำลังแก้ไขไฟล์ /etc/ssh/sshd_config.d/50-cloud-init.conf ..." "$BLUE"
+        sudo sed -i.bak -E \
+            -e 's/^#?PasswordAuthentication.*/PasswordAuthentication no/' \
+            /etc/ssh/sshd_config.d/50-cloud-init.conf || {
+            warning_log "ไม่สามารถแก้ไขไฟล์ 50-cloud-init.conf ได้"
+            return 1
+        }
+    fi
+
     # ตรวจสอบความถูกต้องของการตั้งค่าก่อนรีสตาร์ท
     log "🧪 ทดสอบการตั้งค่า SSH..." "$BLUE"
     if ! sudo sshd -t; then
@@ -632,6 +643,9 @@ ssh_security_hardening() {
         sudo cp "${sshd_config}.bak" "$sshd_config" 2>/dev/null || true
         return 1
     fi
+
+
+    
 
     # Ensure SSH privilege separation directory exists - แก้ปัญหาที่เกิดขึ้น
     sudo mkdir -p /run/sshd || {
