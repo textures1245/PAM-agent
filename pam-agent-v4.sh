@@ -625,15 +625,15 @@ ssh_security_hardening() {
         return 1
     }
 
-    # check if file exits on /etc/ssh/sshd_config.d/50-cloud-init.conf then sed PasswordAuthentication to "no"
-    if [[ -f "/etc/ssh/sshd_config.d/50-cloud-init.conf" ]]; then
-        log "🔧 กำลังแก้ไขไฟล์ /etc/ssh/sshd_config.d/50-cloud-init.conf ..." "$BLUE"
-        sudo sed -i.bak -E \
-            -e 's/^#?PasswordAuthentication.*/PasswordAuthentication no/' \
-            /etc/ssh/sshd_config.d/50-cloud-init.conf || {
-            warning_log "ไม่สามารถแก้ไขไฟล์ 50-cloud-init.conf ได้"
-            return 1
-        }
+    # check if folder /etc/ssh/sshd_config.d/ exists then grep PasswordAuthentication and set to "no"
+    if [[ -d "/etc/ssh/sshd_config.d/" ]]; then
+        if sudo grep -q "^PasswordAuthentication" /etc/ssh/sshd_config.d/*.conf 2>/dev/null; then
+            log "🔧 แก้ไขไฟล์ใน /etc/ssh/sshd_config.d/ เพื่อปิด PasswordAuthentication ..." "$BLUE"
+            sudo sed -i -E 's/^#?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config.d/*.conf || {
+                warning_log "ไม่สามารถแก้ไขไฟล์ใน sshd_config.d ได้"
+                return 1
+            }
+        fi
     fi
 
     # ตรวจสอบความถูกต้องของการตั้งค่าก่อนรีสตาร์ท
@@ -1130,15 +1130,87 @@ UseDNS yes
 Subsystem sftp /usr/lib/openssh/sftp-server
 EOF
 
+    if [[ -d "/etc/ssh/sshd_config.d/" ]]; then
+        if sudo grep -q "^PasswordAuthentication" /etc/ssh/sshd_config.d/*.conf 2>/dev/null; then
+            log "🔧 แก้ไขไฟล์ใน /etc/ssh/sshd_config.d/ เพื่อเปิด PasswordAuthentication ..." "$BLUE"
+            sudo sed -i -E 's/^#?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config.d/*.conf || {
+                warning_log "ไม่สามารถแก้ไขไฟล์ใน sshd_config.d ได้"
+                return 1
+            }
+        fi
+    fi
+
     log "🔧 Step 3: ตรวจสอบและสร้าง SSH host keys..." "$CYAN"
     sudo mkdir -p /etc/ssh 2>/dev/null || true
     
-    if [[ ! -f /etc/ssh/ssh_host_rsa_key ]] || [[ ! -f /etc/ssh/ssh_host_ecdsa_key ]] || [[ ! -f /etc/ssh/ssh_host_ed25519_key ]]; then
-        log "🔑 กำลังสร้าง SSH host keys..." "$BLUE"
+    # ตรวจสอบว่า SSH host keys มีอยู่และ valid หรือไม่
+    local need_regenerate=false
+    local invalid_keys=()
+    
+    # ตรวจสอบแต่ละ key type
+    for key_type in rsa ecdsa ed25519; do
+        local key_file="/etc/ssh/ssh_host_${key_type}_key"
+        local pub_file="/etc/ssh/ssh_host_${key_type}_key.pub"
+        
+        # ตรวจสอบว่าไฟล์มีอยู่หรือไม่
+        if [[ ! -f "$key_file" ]] || [[ ! -f "$pub_file" ]]; then
+            log "⚠️ ไม่พบ ${key_type} key" "$YELLOW"
+            invalid_keys+=("$key_type")
+            need_regenerate=true
+            continue
+        fi
+        
+        # ตรวจสอบว่าไฟล์มีขนาดหรือไม่ (ไฟล์เปล่าถือว่า invalid)
+        if [[ ! -s "$key_file" ]] || [[ ! -s "$pub_file" ]]; then
+            log "⚠️ ${key_type} key ไฟล์เปล่า (invalid)" "$YELLOW"
+            invalid_keys+=("$key_type")
+            need_regenerate=true
+            continue
+        fi
+        
+        # ตรวจสอบ permissions
+        local key_perms=$(stat -c "%a" "$key_file" 2>/dev/null || stat -f "%OLp" "$key_file" 2>/dev/null)
+        local pub_perms=$(stat -c "%a" "$pub_file" 2>/dev/null || stat -f "%OLp" "$pub_file" 2>/dev/null)
+        
+        if [[ "$key_perms" != "600" ]]; then
+            log "⚠️ ${key_type} key มี permissions ไม่ถูกต้อง ($key_perms แทน 600)" "$YELLOW"
+            # แค่แก้ permissions ไม่ต้อง regenerate
+            sudo chmod 600 "$key_file" 2>/dev/null || true
+        fi
+        
+        if [[ "$pub_perms" != "644" ]]; then
+            log "⚠️ ${key_type} public key มี permissions ไม่ถูกต้อง ($pub_perms แทน 644)" "$YELLOW"
+            sudo chmod 644 "$pub_file" 2>/dev/null || true
+        fi
+        
+        # ตรวจสอบความถูกต้องของ key โดยใช้ ssh-keygen
+        if ! ssh-keygen -l -f "$key_file" &>/dev/null; then
+            log "⚠️ ${key_type} key ไม่ถูกต้อง (corrupted)" "$YELLOW"
+            invalid_keys+=("$key_type")
+            need_regenerate=true
+            continue
+        fi
+        
+        log "✅ ${key_type} key ถูกต้อง" "$GREEN"
+    done
+    
+    # Regenerate เฉพาะ keys ที่ invalid
+    if [[ "$need_regenerate" == true ]]; then
+        log "🔑 พบ keys ที่ไม่ถูกต้อง: ${invalid_keys[*]}" "$YELLOW"
+        log "🔑 กำลังสร้าง SSH host keys ใหม่..." "$BLUE"
+        
+        # Backup keys ที่มีอยู่ก่อน
+        for key_type in rsa ecdsa ed25519; do
+            if [[ -f "/etc/ssh/ssh_host_${key_type}_key" ]]; then
+                sudo cp "/etc/ssh/ssh_host_${key_type}_key" "/etc/ssh/ssh_host_${key_type}_key.emergency_backup_${TIMESTAMP}" 2>/dev/null || true
+            fi
+        done
+        
+        # Regenerate ทุก keys เพื่อความปลอดภัย
         sudo ssh-keygen -A 2>/dev/null || true
         log "✅ SSH host keys สร้างเรียบร้อย" "$GREEN"
     else
-        log "✅ SSH host keys มีอยู่แล้ว" "$GREEN"
+        log "✅ SSH host keys ทั้งหมดถูกต้อง - ไม่ต้อง regenerate" "$GREEN"
     fi
 
     log "🔧 Step 4: ตั้งค่าสิทธิ์ไฟล์..." "$CYAN"
@@ -1147,6 +1219,7 @@ EOF
     sudo chmod 644 /etc/ssh/sshd_config
     sudo chown root:root /etc/ssh/sshd_config
     sudo chown root:root /etc/ssh/ssh_host_* 2>/dev/null || true
+    log "✅ ตั้งค่าสิทธิ์ไฟล์เรียบร้อย" "$GREEN"
 
     log "🧪 Step 5: ทดสอบการตั้งค่า SSH..." "$CYAN"
     if sudo sshd -t; then
