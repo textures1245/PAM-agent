@@ -638,10 +638,10 @@ ssh_security_hardening() {
         warning_log "ไม่สามารถสร้าง SSH privilege separation directory ได้"
     }
 
-    log "🔄 กำลัง restart sshd ..." "$BLUE"
-    if sudo systemctl restart sshd; then
-        log "✅ ตั้งค่า ssh และ restart sshd สำเร็จ" "$GREEN"
-        
+    log "🔄 กำลัง restart ssh ..." "$BLUE"
+    if sudo systemctl restart ssh; then
+        log "✅ ตั้งค่า ssh และ restart ssh สำเร็จ" "$GREEN"
+
         # แสดงการตั้งค่าปัจจุบัน
         log "📋 การตั้งค่า SSH ที่มีผล:" "$BLUE"
         sudo grep -E "^(PermitRootLogin|PasswordAuthentication|PubkeyAuthentication|UsePAM|X11Forwarding)" /etc/ssh/sshd_config
@@ -1144,14 +1144,9 @@ EOF
     log "🔄 Step 6: รีสตาร์ท SSH service..." "$CYAN"
     local service_restarted=false
     
-    if sudo systemctl restart sshd 2>/dev/null; then
-        service_name="sshd"
-        service_restarted=true
-    elif sudo systemctl restart ssh 2>/dev/null; then
+
+    if sudo systemctl restart ssh 2>/dev/null; then
         service_name="ssh"
-        service_restarted=true
-    elif sudo service sshd restart 2>/dev/null; then
-        service_name="sshd"
         service_restarted=true
     elif sudo service ssh restart 2>/dev/null; then
         service_name="ssh"
