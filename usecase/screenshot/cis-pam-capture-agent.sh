@@ -83,8 +83,8 @@ LOG_FILE=""
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
 # Remote URLs (GitLab raw file format)
-REMOTE_DATA_ADAPTER="https://git.inet.co.th/devops/devops-iac/-/raw/develop/script/actions/Configuration/ci-pam/lib/screenshot/data-adapter.sh"
-REMOTE_TERMSHOT_UTILS="https://git.inet.co.th/devops/devops-iac/-/raw/develop/script/actions/Configuration/ci-pam/lib/screenshot/termshot.sh"
+REMOTE_DATA_ADAPTER="https://raw.githubusercontent.com/textures1245/PAM-agent/refs/heads/main/usecase/screenshot/data-adapter.sh"
+REMOTE_TERMSHOT_UTILS="https://raw.githubusercontent.com/textures1245/PAM-agent/refs/heads/main/usecase/screenshot/termshot.sh"
 
 # Local file paths (used when --local flag is set)
 LOCAL_DATA_ADAPTER="${SCRIPT_DIR}/data-adapter.sh"
