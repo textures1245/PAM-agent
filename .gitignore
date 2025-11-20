@@ -59,3 +59,5 @@ __pycache__/
 
 # ─────── Misc ───────
 *.bak
+
+screenshots/*
