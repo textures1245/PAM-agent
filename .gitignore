@@ -63,3 +63,5 @@ __pycache__/
 screenshots/*
 
 user_credentials_clean.json
+lab_cnx_key_03
+termshot-data.sh
