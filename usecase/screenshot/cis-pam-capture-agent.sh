@@ -32,14 +32,72 @@ CYAN='\033[0;36m'
 PURPLE='\033[0;35m'
 NC='\033[0m'
 
+# Parse command line arguments
+SOURCE_MODE="remote"  # Default to remote
+for arg in "$@"; do
+    case "$arg" in
+        --local)
+            SOURCE_MODE="local"
+            shift
+            ;;
+        --help|-h)
+            cat << 'HELP_EOF'
+CIS PAM Capture Agent - Evidence Collection Tool
+
+Usage:
+  ./cis-pam-capture-agent.sh [OPTIONS]
+  curl -fsSL <script-url> | bash -s -- [OPTIONS]
+
+Options:
+  --local       Use local script files (data-adapter.sh, termshot.sh)
+                Default: Uses remote sources from GitLab
+
+  --help, -h    Show this help message
+
+Requirements:
+  - user_credentials_clean.json must exist in the current directory
+  - SSH access to target VMs
+  - Ubuntu/Debian: Auto-installs missing packages (ssh, jq, python3, curl)
+
+Examples:
+  # Use remote sources (default - for production)
+  ./cis-pam-capture-agent.sh
+
+  # Use local sources (for development)
+  ./cis-pam-capture-agent.sh --local
+
+  # Run directly from GitLab
+  curl -fsSL <script-url> | bash
+
+HELP_EOF
+            exit 0
+            ;;
+    esac
+done
+
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JSON_FILE="${SCRIPT_DIR}/user_credentials_clean.json"
-DATA_ADAPTER="${SCRIPT_DIR}/data-adapter.sh"
-TERMSHOT_UTILS="${SCRIPT_DIR}/termshot.sh"
 TERMSHOT_DATA="${SCRIPT_DIR}/termshot-data.sh"
 LOG_FILE=""
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+
+# Remote URLs (GitLab raw file format)
+REMOTE_DATA_ADAPTER="https://git.inet.co.th/devops/devops-iac/-/raw/develop/script/actions/Configuration/ci-pam/lib/screenshot/data-adapter.sh"
+REMOTE_TERMSHOT_UTILS="https://git.inet.co.th/devops/devops-iac/-/raw/develop/script/actions/Configuration/ci-pam/lib/screenshot/termshot.sh"
+
+# Local file paths (used when --local flag is set)
+LOCAL_DATA_ADAPTER="${SCRIPT_DIR}/data-adapter.sh"
+LOCAL_TERMSHOT_UTILS="${SCRIPT_DIR}/termshot.sh"
+
+# Set paths based on source mode
+if [[ "$SOURCE_MODE" == "local" ]]; then
+    DATA_ADAPTER="$LOCAL_DATA_ADAPTER"
+    TERMSHOT_UTILS="$LOCAL_TERMSHOT_UTILS"
+else
+    DATA_ADAPTER="$REMOTE_DATA_ADAPTER"
+    TERMSHOT_UTILS="$REMOTE_TERMSHOT_UTILS"
+fi
 
 # User inputs
 SSH_USERNAME=""
@@ -69,6 +127,7 @@ error_exit() {
 # Function: Check prerequisites
 check_prerequisites() {
     log "🔍 Checking prerequisites..." "$BLUE"
+    log "  📍 Source mode: $SOURCE_MODE" "$CYAN"
     
     # Check JSON file
     if [[ ! -f "$JSON_FILE" ]]; then
@@ -76,25 +135,79 @@ check_prerequisites() {
     fi
     log "  ✓ Found $JSON_FILE" "$GREEN"
     
-    # Check data-adapter script
-    if [[ ! -f "$DATA_ADAPTER" ]]; then
-        error_exit "data-adapter.sh not found: $DATA_ADAPTER"
-    fi
-    log "  ✓ Found data-adapter.sh" "$GREEN"
-    
-    # Check termshot utils script
-    if [[ ! -f "$TERMSHOT_UTILS" ]]; then
-        error_exit "termshot.sh not found: $TERMSHOT_UTILS"
-    fi
-    log "  ✓ Found termshot.sh" "$GREEN"
-    
-    # Check required commands
-    for cmd in ssh scp jq python3; do
+    # Check or install required commands
+    local missing_cmds=()
+    for cmd in ssh scp jq python3 curl; do
         if ! command -v "$cmd" &>/dev/null; then
-            error_exit "Required command not found: $cmd"
+            missing_cmds+=("$cmd")
         fi
     done
+    
+    if [[ ${#missing_cmds[@]} -gt 0 ]]; then
+        log "  ⚠️  Missing commands: ${missing_cmds[*]}" "$YELLOW"
+        
+        # Auto-install on Ubuntu/Debian
+        if [[ -f /etc/os-release ]]; then
+            # shellcheck source=/dev/null
+            source /etc/os-release
+            
+            if [[ "$ID" == "ubuntu" || "$ID" == "debian" ]]; then
+                log "  📦 Installing missing packages on Ubuntu/Debian..." "$CYAN"
+                
+                # Map commands to package names
+                local packages=()
+                for cmd in "${missing_cmds[@]}"; do
+                    case "$cmd" in
+                        ssh|scp) packages+=("openssh-client") ;;
+                        jq) packages+=("jq") ;;
+                        python3) packages+=("python3") ;;
+                        curl) packages+=("curl") ;;
+                    esac
+                done
+                
+                # Remove duplicates
+                local unique_packages=($(printf '%s\n' "${packages[@]}" | sort -u))
+                
+                sudo apt-get update -qq &>/dev/null || true
+                for pkg in "${unique_packages[@]}"; do
+                    log "    Installing $pkg..." "$CYAN"
+                    sudo apt-get install -y "$pkg" &>/dev/null || \
+                        log "    ⚠️  Failed to install $pkg" "$YELLOW"
+                done
+            else
+                log "  ⚠️  Not Ubuntu/Debian, please install manually: ${missing_cmds[*]}" "$YELLOW"
+            fi
+        fi
+        
+        # Re-check after installation
+        local still_missing=()
+        for cmd in "${missing_cmds[@]}"; do
+            if ! command -v "$cmd" &>/dev/null; then
+                still_missing+=("$cmd")
+            fi
+        done
+        
+        if [[ ${#still_missing[@]} -gt 0 ]]; then
+            error_exit "Required commands not found: ${still_missing[*]}"
+        fi
+    fi
+    
     log "  ✓ All required commands available" "$GREEN"
+    
+    # Verify source files based on mode
+    if [[ "$SOURCE_MODE" == "local" ]]; then
+        if [[ ! -f "$DATA_ADAPTER" ]]; then
+            error_exit "data-adapter.sh not found: $DATA_ADAPTER"
+        fi
+        log "  ✓ Found data-adapter.sh (local)" "$GREEN"
+        
+        if [[ ! -f "$TERMSHOT_UTILS" ]]; then
+            error_exit "termshot.sh not found: $TERMSHOT_UTILS"
+        fi
+        log "  ✓ Found termshot.sh (local)" "$GREEN"
+    else
+        log "  ℹ️  Using remote sources" "$CYAN"
+    fi
     
     log "✅ Prerequisites check passed" "$GREEN"
     echo ""
@@ -141,8 +254,23 @@ prompt_user_inputs() {
 run_data_adapter() {
     log "🔄 Running data adapter..." "$BLUE"
     
-    if ! bash "$DATA_ADAPTER" "$JSON_FILE"; then
-        error_exit "Data adapter failed"
+    if [[ "$SOURCE_MODE" == "remote" ]]; then
+        log "  📥 Downloading data-adapter.sh from remote..." "$CYAN"
+        local temp_adapter="/tmp/data-adapter-${TIMESTAMP}.sh"
+        if ! curl -fsSL "$DATA_ADAPTER" -o "$temp_adapter"; then
+            error_exit "Failed to download data-adapter.sh from remote"
+        fi
+        chmod +x "$temp_adapter"
+        
+        if ! bash "$temp_adapter" "$JSON_FILE"; then
+            rm -f "$temp_adapter"
+            error_exit "Data adapter failed"
+        fi
+        rm -f "$temp_adapter"
+    else
+        if ! bash "$DATA_ADAPTER" "$JSON_FILE"; then
+            error_exit "Data adapter failed"
+        fi
     fi
     
     if [[ ! -f "$TERMSHOT_DATA" ]]; then
@@ -157,16 +285,32 @@ run_data_adapter() {
 load_data_and_utils() {
     log "📦 Loading data and utility functions..." "$BLUE"
     
-    # Source termshot-data.sh
+    # Source termshot-data.sh (always local - generated at runtime)
     # shellcheck source=/dev/null
     source "$TERMSHOT_DATA"
     log "  ✓ Loaded termshot-data.sh" "$GREEN"
     log "  🔍 DEBUG: TARGET_IPS count after source: ${#TARGET_IPS[@]}" "$CYAN"
     log "  🔍 DEBUG: TARGET_IPS values: ${TARGET_IPS[*]}" "$CYAN"
     
-    # Source termshot.sh
-    # shellcheck source=/dev/null
-    source "$TERMSHOT_UTILS"
+    # Source termshot.sh (local or remote based on mode)
+    if [[ "$SOURCE_MODE" == "remote" ]]; then
+        log "  📥 Downloading termshot.sh from remote..." "$CYAN"
+        local temp_termshot="/tmp/termshot-${TIMESTAMP}.sh"
+        if ! curl -fsSL "$TERMSHOT_UTILS" -o "$temp_termshot"; then
+            error_exit "Failed to download termshot.sh from remote"
+        fi
+        # shellcheck source=/dev/null
+        source "$temp_termshot"
+        rm -f "$temp_termshot"
+        log "  ✓ Loaded termshot.sh (remote)" "$GREEN"
+    else
+        # shellcheck source=/dev/null
+        source "$TERMSHOT_UTILS"
+        log "  ✓ Loaded termshot.sh (local)" "$GREEN"
+    fi
+    
+    echo ""
+}
     log "  ✓ Loaded termshot.sh" "$GREEN"
     
     echo ""
