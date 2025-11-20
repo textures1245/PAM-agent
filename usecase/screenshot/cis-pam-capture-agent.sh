@@ -311,10 +311,6 @@ load_data_and_utils() {
     
     echo ""
 }
-    log "  ✓ Loaded termshot.sh" "$GREEN"
-    
-    echo ""
-}
 
 # Function: Capture screenshots for single VM
 capture_vm_screenshots() {
