@@ -220,7 +220,7 @@ prompt_user_inputs() {
     
     # Prompt for SSH username
     while [[ -z "$SSH_USERNAME" ]]; do
-        read -p "🔑 SSH Username (required): " SSH_USERNAME
+        read -p "🔑 SSH Username (required): " SSH_USERNAME </dev/tty
         if [[ -z "$SSH_USERNAME" ]]; then
             log "  ⚠️  Username cannot be empty" "$YELLOW"
         fi
@@ -228,7 +228,7 @@ prompt_user_inputs() {
     log "  ✓ Username: $SSH_USERNAME" "$GREEN"
     
     # Prompt for SSH key (optional)
-    read -p "🔐 SSH Private Key Path (optional, press Enter to skip): " SSH_KEY_PATH
+    read -p "🔐 SSH Private Key Path (optional, press Enter to skip): " SSH_KEY_PATH </dev/tty
     
     if [[ -n "$SSH_KEY_PATH" ]]; then
         # Expand tilde
@@ -236,7 +236,7 @@ prompt_user_inputs() {
         
         if [[ ! -f "$SSH_KEY_PATH" ]]; then
             log "  ⚠️  Warning: SSH key file not found: $SSH_KEY_PATH" "$YELLOW"
-            read -p "Continue anyway? (y/n): " continue_anyway
+            read -p "Continue anyway? (y/n): " continue_anyway </dev/tty
             if [[ ! "$continue_anyway" =~ ^[Yy] ]]; then
                 error_exit "SSH key file not found"
             fi
