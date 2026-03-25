@@ -625,16 +625,28 @@ ssh_security_hardening() {
         return 1
     }
 
-    # check if folder /etc/ssh/sshd_config.d/ exists then grep PasswordAuthentication and set to "no"
-    if [[ -d "/etc/ssh/sshd_config.d/" ]]; then
-        if sudo grep -q "^PasswordAuthentication" /etc/ssh/sshd_config.d/*.conf 2>/dev/null; then
+        if [[ -d "/etc/ssh/sshd_config.d/" ]]; then
+            if sudo grep -q "^PasswordAuthentication" /etc/ssh/sshd_config.d/*.conf 2>/dev/null; then
             log "🔧 แก้ไขไฟล์ใน /etc/ssh/sshd_config.d/ เพื่อปิด PasswordAuthentication ..." "$BLUE"
             sudo sed -i -E 's/^#?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config.d/*.conf || {
                 warning_log "ไม่สามารถแก้ไขไฟล์ใน sshd_config.d ได้"
                 return 1
             }
+            fi
         fi
-    fi
+
+        if [[ -d "/etc/ssh/ssh_config.d/" ]]; then
+            if sudo grep -q "^PasswordAuthentication" /etc/ssh/ssh_config.d/*.conf 2>/dev/null; then
+            log "🔧 แก้ไขไฟล์ใน /etc/ssh/ssh_config.d/ เพื่อปิด PasswordAuthentication ..." "$BLUE"
+            sudo sed -i -E 's/^#?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/ssh_config.d/*.conf || {
+                warning_log "ไม่สามารถแก้ไขไฟล์ใน ssh_config.d ได้"
+                return 1
+            }
+            fi
+        fi
+
+
+
 
     # ตรวจสอบความถูกต้องของการตั้งค่าก่อนรีสตาร์ท
     log "🧪 ทดสอบการตั้งค่า SSH..." "$BLUE"
