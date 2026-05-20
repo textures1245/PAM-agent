@@ -378,13 +378,13 @@ capture_vm_screenshots() {
     
     # Capture Command 4: Publickey Auth Logs
     log "  📷 [4/5] Capturing publickey authentication logs..." "$CYAN"
-    local cmd4="sudo zgrep -h 'Accepted publickey' /var/log/auth.log* 2>/dev/null | sed 's/RSA SHA256:[^ ]*/RSA/' | sed 's/ED25519 SHA256:[^ ]*/ED25519/' | awk '!seen[\$7]++' | grep -E '$grep_pattern' || echo 'No publickey auth logs found'"
+    local cmd4="sudo zgrep -h 'Accepted publickey' /var/log/auth.log* 2>/dev/null | sed 's/RSA SHA256:[^ ]*/RSA/' | sed 's/ED25519 SHA256:[^ ]*/ED25519/' | awk '!seen[\$7]++ || !seen[\$9]++' | grep -E '$grep_pattern' || echo 'No publickey auth logs found'"
     capture_screenshot_remote "$SSH_USERNAME" "$ip" "$SSH_KEY_PATH" "$folder_name" \
         "$cmd4" "04_publickey_logs.png"
     
     # Capture Command 5: Sudo Session Logs
     log "  📷 [5/5] Capturing sudo session logs..." "$CYAN"
-    local cmd5="sudo zgrep 'sudo:session' /var/log/auth.log* 2>/dev/null | grep 'root(uid=0) by' | awk '{split(\$NF, a, \"(\"); if (!seen[a[1]]++) print}' | grep -E '$grep_pattern' || echo 'No sudo session logs found'"
+    local cmd5="sudo zgrep 'sudo:session' /var/log/auth.log* 2>/dev/null | awk '{split(\$NF, a, \"(\"); if (!seen[a[1]]++) print}' | grep -E '$grep_pattern' || echo 'No sudo session logs found'"
     capture_screenshot_remote "$SSH_USERNAME" "$ip" "$SSH_KEY_PATH" "$folder_name" \
         "$cmd5" "05_sudo_logs.png"
     
