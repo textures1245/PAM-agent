@@ -66,6 +66,19 @@ warning_log() {
     log "⚠️  WARNING: $1" "$YELLOW"
 }
 
+# ตรวจสอบตัวอักษรที่ห้ามใช้ใน username/password (ป้องกัน JSON/CSV injection)
+# Forbidden chars: , |
+check_forbidden_chars() {
+    local field_name="$1"
+    local value="$2"
+
+    if [[ "$value" == *","* ]] || [[ "$value" == *"|"* ]]; then
+        log "❌ พบตัวอักษรที่ห้ามใช้ใน ${field_name}: ',' หรือ '|' ไม่อนุญาต" "$RED"
+        return 1
+    fi
+    return 0
+}
+
 # การจัดการข้อผิดพลาดพร้อม rollback
 error_exit() {
     log "❌ ข้อผิดพลาด: $1" "$RED"
@@ -327,6 +340,16 @@ generate_csv_files() {
         ssh_key=$(jq -r --arg user "$username" '.users[] | select(.username == $user) | .ssh_public_key // empty' "$USER_CREDS_JSON" 2>/dev/null)
 
         if [[ -n "$password" ]]; then
+            # ตรวจสอบตัวอักษรที่ห้ามใช้ก่อนเขียนลงไฟล์
+            if ! check_forbidden_chars "username" "$username"; then
+                log "⚠️ ข้ามผู้ใช้: $username (username มีตัวอักษรที่ห้ามใช้)" "$YELLOW"
+                continue
+            fi
+            if ! check_forbidden_chars "password" "$password"; then
+                log "⚠️ ข้ามผู้ใช้: $username (password มีตัวอักษรที่ห้ามใช้)" "$YELLOW"
+                continue
+            fi
+
             # เพิ่มใน user_list.csv
             echo "$username","$password" >>"$USER_LIST_FILE"
 
